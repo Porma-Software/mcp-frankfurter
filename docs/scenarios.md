@@ -53,6 +53,7 @@ extra network round trip to anticipate.
 | FX-10 | A caller restricts `symbols` to a subset of currencies | Only those currencies come back |
 | FX-11 | `base` or an entry of `symbols` is not a 3-letter code | Validation error naming the argument and the value received; upstream is never called |
 | FX-12 | The upstream is unreachable or answers with an error status | Error naming the exchange-rate service as unavailable |
+| FX-30 | Upstream has no rates at all for the requested base/symbols | Error explaining no rates are available, naming the base currency |
 
 ## Historical rate (`historical_rate`)
 
