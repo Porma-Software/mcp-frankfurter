@@ -1,0 +1,17 @@
+services:
+  mcp-frankfurter:
+    build: .
+    image: mcp-frankfurter:local
+    # Token and upstream settings come from .env (cp .env.example .env) or from the shell.
+    env_file:
+      - path: .env
+        required: false
+    # The container always serves HTTP on all interfaces.
+    environment:
+      MCP_TRANSPORT: streamable-http
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8000"
+      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

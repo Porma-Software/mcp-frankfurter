@@ -1,0 +1,62 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv sync:*)",
+      "Bash(uv lock:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run ruff:*)",
+      "Bash(uv run mypy:*)",
+      "Bash(uv run python:*)",
+      "Bash(uv run mcp-frankfurter:*)",
+      "Bash(uv run mcp:*)",
+      "Bash(uv run mutmut:*)",
+      "Bash(make scenarios:*)",
+      "Bash(make mutation:*)",
+      "Bash(make lint:*)",
+      "Bash(make test:*)",
+      "Bash(make fmt:*)",
+      "Bash(bash .claude/scripts/hex-check.sh:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git branch:*)",
+      "Bash(git blame:*)",
+      "Bash(docker build:*)",
+      "Bash(docker compose build:*)",
+      "Read(./.env.example)"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Read(./.env)",
+      "Read(./.env.*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|MultiEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/scripts/format.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR\"/.claude/scripts/test-reminder.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
