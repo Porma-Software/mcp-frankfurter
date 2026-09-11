@@ -24,10 +24,11 @@ ROOT = Path(__file__).resolve().parents[1]
 STATS = ROOT / "mutants" / "mutmut-cicd-stats.json"
 
 # mutant name -> why it cannot change observable behaviour. Reviewed like any other code.
-# Empty for now: no Frankfurter tool/mapper logic exists yet in this scaffold slice (see
-# docs/DECISIONS.md), so there is nothing yet to claim provably equivalent. Add an entry here
-# only with a reason read from the mutant's own code (`uv run mutmut show <name>`), never as a
-# way to silence a mutant nobody has looked at.
+# Empty for now: mutmut refuses to run natively on Windows (see the module docstring), so this
+# slice's upstream.py/mappers.py logic has not actually been run through it yet -- only the
+# `mutation` CI job (ubuntu-latest) has. Add an entry here only with a reason read from the
+# mutant's own code (`uv run mutmut show <name>`), never as a way to silence a mutant nobody has
+# looked at, and never from CI output alone without reading that code.
 EQUIVALENT_MUTANTS: dict[str, str] = {}
 
 # Verdicts that mean "the test suite did not prove anything about this mutant".
