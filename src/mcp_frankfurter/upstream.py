@@ -1,16 +1,27 @@
 # Copyright (c) 2026 Nahúm Cueto López (Porma Software)
 # SPDX-License-Identifier: MIT
-"""Async client for the upstream HTTP API (Frankfurter).
+"""Async client for the upstream HTTP API (Frankfurter `v2`, see `docs/DECISIONS.md`).
 
-This is the ONLY module that will know the upstream URL shapes and response formats once the
-Frankfurter-specific methods land (see docs/DECISIONS.md for the API version probe and the
-choice it settled on). For this scaffold it owns just the generic HTTP wiring shared by every
-future method: configuration, lifecycle and the one error type every upstream call will raise.
+The ONLY module that knows the upstream URL shapes and response formats. Three endpoint methods,
+all reachable through `v2/rates` and `v2/currencies`:
+
+- `rates(base, quotes, date)`: `date=None` is "latest"; given, it is one historical date. Both
+  share the same upstream endpoint and response shape (see `mappers.parse_rate_rows`).
+- `rates_range(base, quotes, date_from, date_to)`: a date range, same response shape as `rates`.
+- `currencies()`: the ISO 4217 catalogue.
+
+Every method returns `mappers.py` domain records or raises `UpstreamError` — never the raw
+`httpx.Response` or JSON. No tool calls these yet (`server.py` registers none this slice; see
+`docs/scenarios.md`), so every method here is exercised directly by
+`tests/integration/whitebox/test_upstream_whitebox.py` against the fixtures in `tests/fixtures/`.
 """
+
+from collections.abc import Sequence
 
 import httpx
 
 from mcp_frankfurter.config import Settings
+from mcp_frankfurter.mappers import CurrencyRow, RateRow, parse_currency_rows, parse_rate_rows
 
 USER_AGENT = "mcp-frankfurter/0.1"
 
@@ -26,7 +37,7 @@ class UpstreamError(Exception):
 
 
 class UpstreamClient:
-    """Thin httpx wrapper around the Frankfurter API. Endpoint methods land in the next slice."""
+    """Thin httpx wrapper around the Frankfurter `v2` API."""
 
     def __init__(
         self,
@@ -64,3 +75,61 @@ class UpstreamClient:
 
     async def __aexit__(self, *exc_info: object) -> None:
         await self.aclose()
+
+    async def _get_json(self, path: str, params: dict[str, str]) -> object:
+        url = f"{self._base_url}{path}"
+        try:
+            response = await self._client.get(url, params=params)
+        except httpx.HTTPError as exc:
+            raise UpstreamError(f"could not reach {url}: {exc}") from exc
+        if response.status_code >= 400:
+            raise UpstreamError(
+                f"{url} returned HTTP {response.status_code}", status_code=response.status_code
+            )
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise UpstreamError(f"{url} returned a response that is not valid JSON") from exc
+
+    async def rates(
+        self, *, base: str = "EUR", quotes: Sequence[str] | None = None, date: str | None = None
+    ) -> list[RateRow]:
+        """`GET /rates`: `date=None` is the latest rate, otherwise one historical date."""
+        params: dict[str, str] = {"base": base}
+        if quotes:
+            params["quotes"] = ",".join(quotes)
+        if date is not None:
+            params["date"] = date
+        payload = await self._get_json("/rates", params)
+        try:
+            return parse_rate_rows(payload)
+        except ValueError as exc:
+            raise UpstreamError(f"malformed response from {self._base_url}/rates: {exc}") from exc
+
+    async def rates_range(
+        self,
+        *,
+        date_from: str,
+        date_to: str,
+        base: str = "EUR",
+        quotes: Sequence[str] | None = None,
+    ) -> list[RateRow]:
+        """`GET /rates?from=...&to=...`: one row per published date in `[date_from, date_to]`."""
+        params: dict[str, str] = {"base": base, "from": date_from, "to": date_to}
+        if quotes:
+            params["quotes"] = ",".join(quotes)
+        payload = await self._get_json("/rates", params)
+        try:
+            return parse_rate_rows(payload)
+        except ValueError as exc:
+            raise UpstreamError(f"malformed response from {self._base_url}/rates: {exc}") from exc
+
+    async def currencies(self) -> list[CurrencyRow]:
+        """`GET /currencies`: the ISO 4217 catalogue Frankfurter quotes against the euro."""
+        payload = await self._get_json("/currencies", {})
+        try:
+            return parse_currency_rows(payload)
+        except ValueError as exc:
+            raise UpstreamError(
+                f"malformed response from {self._base_url}/currencies: {exc}"
+            ) from exc
