@@ -22,11 +22,34 @@ exact date the rate was published.
 
 ## See it working
 
-![A terminal recording of the demo script asking for the latest USD and GBP rates, converting 1,500 EUR to USD, and pulling a 30-day rate history for GBP.](docs/demo.gif)
+[`scripts/demo.py`](scripts/demo.py) is a plain MCP client talking to this server exactly as
+Claude would: latest rates for USD and GBP, converting 1,500 EUR to USD, and a 30-day rate
+history. Run it yourself —
 
-The recording runs [`scripts/demo.py`](scripts/demo.py), a plain MCP client talking to this
-server exactly as Claude would: latest rates for USD and GBP, converting 1,500 EUR to USD, and a
-30-day rate history — real calls, real answers.
+```bash
+uv run python scripts/demo.py
+```
+
+— or read a real captured run below (`uv run python scripts/demo.py`, live against the real
+Frankfurter API, unedited):
+
+```
+mcp-frankfurter demo - a real MCP client, three real tool calls
+
+> latest_rates(base='EUR', symbols=['USD', 'GBP'])
+  1 EUR = 0.85852 GBP
+  1 EUR = 1.1622 USD
+  (rate date: 2026-09-12)
+
+> convert(amount=1500, from_currency='EUR', to_currency='USD')
+  1500.00 EUR = 1743.30 USD (rate 1.1622, as of 2026-09-12)
+
+> rate_timeseries(start_date='2026-08-12', end_date='2026-09-11', symbol='GBP')
+  31 published rates from 2026-08-12 to 2026-09-11
+  min 0.85365  max 0.85934  average 0.85678
+```
+
+Rates change day to day — your own run will show different numbers, always the current ones.
 
 ## Set up in 5 minutes
 
