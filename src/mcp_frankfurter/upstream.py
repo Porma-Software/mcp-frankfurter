@@ -11,8 +11,8 @@ all reachable through `v2/rates` and `v2/currencies`:
 - `currencies()`: the ISO 4217 catalogue.
 
 Every method returns `mappers.py` domain records or raises `UpstreamError` — never the raw
-`httpx.Response` or JSON. No tool calls these yet (`server.py` registers none this slice; see
-`docs/scenarios.md`), so every method here is exercised directly by
+`httpx.Response` or JSON. `server.py`'s five tools call these through the `to_*` mapper
+functions; each method is also exercised directly by
 `tests/integration/whitebox/test_upstream_whitebox.py` against the fixtures in `tests/fixtures/`.
 """
 
