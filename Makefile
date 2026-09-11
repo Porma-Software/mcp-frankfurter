@@ -2,7 +2,7 @@
 UV ?= uv
 IMAGE ?= mcp-frankfurter
 
-.PHONY: help dev run-http test scenarios mutation lint fmt docker-build docker-run
+.PHONY: help dev run-http test scenarios mutation lint fmt docker-build docker-run secrets-scan
 
 help: ## List targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -39,3 +39,6 @@ docker-build: ## Build the image
 
 docker-run: ## Run the image on port 8000 with the variables from .env
 	docker run --rm -p 8000:8000 --env-file .env $(IMAGE)
+
+secrets-scan: ## Local reproduction of the gitleaks-history CI job (full git history)
+	bash scripts/scan-secrets-local.sh

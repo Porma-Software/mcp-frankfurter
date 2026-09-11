@@ -22,6 +22,10 @@ build/
 mutants/
 .mutmut-cache
 
+# local secret scan (make secrets-scan / scripts/scan-secrets-local.sh)
+gitleaks.log
+.gitleaks-scan/
+
 # claude code: machine-local permission approvals, never shared
 .claude/settings.local.json
 

@@ -20,10 +20,15 @@ uv run mcp-frankfurter            # stdio transport
 MCP_TRANSPORT=streamable-http MCP_AUTH_TOKEN=... uv run mcp-frankfurter  # HTTP on 127.0.0.1:8000
 docker build -t mcp-frankfurter . && docker run --rm -p 8000:8000 -e MCP_AUTH_TOKEN=... mcp-frankfurter
 make mutation                    # mutmut on server/upstream/mappers, 0 survivors (Linux/WSL/Docker only)
+bash scripts/scan-secrets-local.sh   # = make secrets-scan: gitleaks over full history, Windows-safe
 ```
 
 `make` is not available on the Windows dev machine: run the commands above directly. CI runs
-`make lint`, `make scenarios`, `make test` and, in its own job, `make mutation`.
+`make lint`, `make scenarios`, `make test` and, in its own job, `make mutation`. The
+`gitleaks-history` CI job (`.github/workflows/secrets.yml`) is reproduced locally with
+`scripts/scan-secrets-local.sh` rather than typing the raw `docker run -v ...:/repo` command by
+hand: Git Bash on Windows rewrites a bare `/repo` argument into an MSYS install path before
+docker ever sees it, and the script sets `MSYS_NO_PATHCONV=1` to stop that.
 
 ## Layout
 
