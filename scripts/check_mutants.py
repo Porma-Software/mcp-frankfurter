@@ -24,12 +24,27 @@ ROOT = Path(__file__).resolve().parents[1]
 STATS = ROOT / "mutants" / "mutmut-cicd-stats.json"
 
 # mutant name -> why it cannot change observable behaviour. Reviewed like any other code.
-# Empty for now: mutmut refuses to run natively on Windows (see the module docstring), so this
-# slice's upstream.py/mappers.py logic has not actually been run through it yet -- only the
-# `mutation` CI job (ubuntu-latest) has. Add an entry here only with a reason read from the
-# mutant's own code (`uv run mutmut show <name>`), never as a way to silence a mutant nobody has
-# looked at, and never from CI output alone without reading that code.
-EQUIVALENT_MUTANTS: dict[str, str] = {}
+# Run once locally (WSL copy, `uv run mutmut run`, see the module docstring) and once more by
+# CI's `mutation` job (ubuntu-latest) on every push. Add an entry here only with a reason read
+# from the mutant's own code (`uv run mutmut show <name>`), never as a way to silence a mutant
+# nobody has looked at, and never from CI output alone without reading that code.
+EQUIVALENT_MUTANTS: dict[str, str] = {
+    "mcp_frankfurter.upstream.xǁUpstreamClientǁcurrencies__mutmut_3": (
+        'changes `self._get_json("/currencies", {})` to `self._get_json("/currencies", '
+        "None)`. `_get_json`'s only externally observable effect is the httpx request built by "
+        "`self._client.get(url, params=params)`; httpx.Client._merge_queryparams treats a falsy "
+        "`params` (`None` or `{}`) identically whenever the client itself carries no default "
+        "params (both hit the `if params or self.params:` branch's False arm and pass straight "
+        "through into `Request.__init__`'s `httpx.QueryParams(params)`), so `build_request` "
+        "produces a byte-identical URL and header set either way -- verified directly: "
+        '`client.build_request("GET", "/currencies", params=None)` and the same call with '
+        "`params={}` compare equal on both `.url` and `.headers.raw`. No response this method "
+        "can receive differs, so no HTTP-boundary test can tell them apart; only mocking "
+        "`_get_json`'s own call arguments could, which the mcp-testing skill's 'pin the outcome, "
+        "not the call' rule rules out (that would pin an implementation detail, not an "
+        "observable one)."
+    ),
+}
 
 # Verdicts that mean "the test suite did not prove anything about this mutant".
 BAD_VERDICTS = ("survived", "suspicious", "timeout", "no_tests")

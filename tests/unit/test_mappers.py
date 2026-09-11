@@ -236,6 +236,23 @@ def test_to_rates_snapshot_notes_a_stale_quote_currency() -> None:
     )
 
 
+def test_to_rates_snapshot_notes_multiple_stale_quote_currencies() -> None:
+    # Two lagging currencies: pins the ", " separator joining the listed entries, not just
+    # whether one of them appears.
+    rows = [
+        RateRow(date="2026-09-04", base="EUR", quote="ANG", rate=2.0813),
+        RateRow(date="2026-09-05", base="EUR", quote="JPY", rate=179.0),
+        RateRow(date="2026-09-06", base="EUR", quote="USD", rate=1.1627),
+    ]
+
+    snapshot = to_rates_snapshot(rows, requested_date="2026-09-06")
+
+    assert snapshot["note"] == (
+        "Older data for ANG (2026-09-04), JPY (2026-09-05): no more recent published rate "
+        "available yet."
+    )
+
+
 def test_to_rates_snapshot_combines_both_notes_when_both_apply() -> None:
     rows = [
         RateRow(date="2026-09-04", base="EUR", quote="ANG", rate=2.0813),

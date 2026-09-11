@@ -45,6 +45,13 @@ async def test_base_url_strips_a_trailing_slash() -> None:
         assert instance.base_url == "https://api.frankfurter.dev/v2"
 
 
+async def test_base_url_rstrip_removes_only_the_trailing_slash() -> None:
+    # rstrip("/") strips exactly the trailing "/" character, not every trailing character that
+    # happens to share a mutated character set with it (pins against a widened rstrip() charset).
+    async with UpstreamClient(base_url="https://x.test/v2X/") as instance:
+        assert instance.base_url == "https://x.test/v2X"
+
+
 def test_timeout_seconds_is_stored() -> None:
     assert UpstreamClient(base_url="https://x.test", timeout_seconds=2.5).timeout_seconds == 2.5
 
@@ -57,6 +64,27 @@ def test_user_agent_is_set_on_the_http_client() -> None:
     instance = UpstreamClient(base_url="https://x.test")
 
     assert instance._client.headers["User-Agent"] == USER_AGENT
+
+
+def test_headers_carry_the_exact_documented_name_and_value() -> None:
+    # httpx.Headers lookups are case-insensitive, so a plain instance._client.headers["Accept"]
+    # cannot tell "Accept" from "accept"/"ACCEPT"/an unrelated key; .raw preserves the exact
+    # bytes actually sent.
+    instance = UpstreamClient(base_url="https://x.test")
+
+    raw = dict(instance._client.headers.raw)
+
+    assert raw[b"User-Agent"] == USER_AGENT.encode()
+    assert raw[b"Accept"] == b"application/json"
+
+
+def test_timeout_and_transport_reach_the_underlying_http_client() -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(200, json=[]))
+
+    instance = UpstreamClient(base_url="https://x.test", timeout_seconds=7.0, transport=transport)
+
+    assert instance._client._transport is transport
+    assert instance._client.timeout == httpx.Timeout(7.0)
 
 
 async def test_from_settings_wires_base_url_and_timeout() -> None:
@@ -183,6 +211,19 @@ async def test_rates_raises_upstream_error_on_an_http_error_status(
     assert exc.value.status_code == 503
 
 
+async def test_rates_raises_upstream_error_on_http_400_exactly(
+    client: UpstreamClient, respx_mock: respx.MockRouter
+) -> None:
+    # Pins the >= 400 boundary itself, not just a higher status already covered elsewhere.
+    respx_mock.get(f"{BASE_URL}/rates").mock(return_value=httpx.Response(400, text="bad request"))
+
+    with pytest.raises(UpstreamError) as exc:
+        await client.rates(base="EUR", quotes=["USD"])
+
+    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 400"
+    assert exc.value.status_code == 400
+
+
 async def test_rates_raises_upstream_error_on_a_network_failure(
     client: UpstreamClient, respx_mock: respx.MockRouter
 ) -> None:
@@ -236,9 +277,22 @@ async def test_rates_range_parses_the_fixture(
     assert rows[0] == RateRow(date="2026-08-10", base="EUR", quote="USD", rate=1.1553)
     assert rows[-1] == RateRow(date="2026-09-08", base="EUR", quote="USD", rate=1.1621)
     sent = route.calls.last.request.url.params
+    assert sent["base"] == "EUR"  # the default, since no base was passed above
     assert sent["from"] == "2026-08-10"
     assert sent["to"] == "2026-09-08"
     assert sent["quotes"] == "USD"
+
+
+async def test_rates_range_joins_multiple_quotes_with_a_comma(
+    client: UpstreamClient, respx_mock: respx.MockRouter
+) -> None:
+    route = respx_mock.get(f"{BASE_URL}/rates").mock(
+        return_value=httpx.Response(200, json=_fixture("v2_rates_range_30d"))
+    )
+
+    await client.rates_range(date_from="2026-08-10", date_to="2026-09-08", quotes=["GBP", "USD"])
+
+    assert route.calls.last.request.url.params["quotes"] == "GBP,USD"
 
 
 async def test_rates_range_without_quotes_omits_the_quotes_param(

@@ -90,6 +90,15 @@ async def test_get_client_builds_one_default_from_the_environment(isolated: None
     await server.close_client()
 
 
+async def test_set_client_replaces_the_active_client() -> None:
+    replacement = UpstreamClient(base_url="https://replacement.test")
+
+    server.set_client(replacement)
+
+    assert server.get_client() is replacement
+    await replacement.aclose()
+
+
 async def test_close_client_is_idempotent(isolated: None) -> None:
     await server.close_client()
 
