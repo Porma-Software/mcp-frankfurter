@@ -26,20 +26,71 @@ transport `main()` starts, `Settings` validation rules, the shape of a bug — a
 handled failure — reaching the client) is covered by `tests/unit/` and deliberately carries no
 catalogue ID: it has no black-box counterpart, because there is no *user* action attached to it.
 
-AUTH-05 (a `stdio` session needs no token at all) has, for now, a dedicated white-box test
-(`tests/integration/whitebox/test_catalogue_whitebox.py`) instead of being tagged onto an
-existing tool test: no tool is registered yet in this scaffold slice (see `docs/DECISIONS.md`),
-so there is nothing else to piggyback the tag on. Once the Frankfurter tools land, `make
-scenarios` still only requires AUTH-05 to be tagged somewhere in the white-box suite — moving the
-tag onto a tool test instead of keeping this dedicated one is a valid way to satisfy it, exactly
-as any white-box test already calls a tool function directly with no `BearerTokenMiddleware` in
-front of it, which *is* the white-box shape of "no token required in-process".
+Every currency code argument (`from_currency`, `to_currency`, `base`, `symbols`, `symbol`) is
+upper-cased and trimmed before use, and validated to be a 3-letter code; the tools never check it
+against the live currency catalogue (`list_currencies`) before calling upstream — the upstream
+call itself rejects a syntactically valid but unknown code (see FX-04/11/17/25), which needs no
+extra network round trip to anticipate.
 
-## Frankfurter tools
+## Currency conversion (`convert`)
 
-No tool is registered yet. The next development slice adds the tool catalogue here — one table
-per tool, one row per happy and failure path — following `.claude/skills/mcp-hexagonal/SKILL.md`
-and this catalogue's own "Adding a scenario" section below.
+| ID | Scenario | Expected outcome |
+|---|---|---|
+| FX-01 | A caller converts an amount with no `date` | The latest rate is used; `converted`, `rate` and `rate_date` (today's working day) come back, `note` is `null` |
+| FX-02 | A caller converts an amount on a specific working-day `date` | `rate_date` equals the requested date; `note` is `null` |
+| FX-03 | A caller converts an amount on a weekend or holiday `date` | The most recent working day's rate is used; `rate_date` differs from the requested date and `note` explains the substitution |
+| FX-04 | `from_currency` or `to_currency` is not a 3-letter code | Validation error naming the argument and the value received; upstream is never called |
+| FX-05 | `amount` is zero or negative | Validation error naming the value received; upstream is never called |
+| FX-06 | `date` is not in `YYYY-MM-DD` format, or not a real calendar date | Validation error naming the value received; upstream is never called |
+| FX-07 | Upstream has no data for the requested currency pair or date (e.g. a date before ECB coverage) | Error explaining no rate is available, naming the currencies and date |
+| FX-08 | The upstream is unreachable or answers with an error status | Error naming the exchange-rate service as unavailable |
+
+## Latest rates (`latest_rates`)
+
+| ID | Scenario | Expected outcome |
+|---|---|---|
+| FX-09 | A caller asks for the latest rates with the default `base` and no `symbols` | Every currency Frankfurter tracks against EUR comes back, dated the latest published day |
+| FX-10 | A caller restricts `symbols` to a subset of currencies | Only those currencies come back |
+| FX-11 | `base` or an entry of `symbols` is not a 3-letter code | Validation error naming the argument and the value received; upstream is never called |
+| FX-12 | The upstream is unreachable or answers with an error status | Error naming the exchange-rate service as unavailable |
+
+## Historical rate (`historical_rate`)
+
+| ID | Scenario | Expected outcome |
+|---|---|---|
+| FX-13 | A caller looks up a working-day `date` | `requested_date` equals `rate_date`; `note` is `null` |
+| FX-14 | A caller looks up a weekend or holiday `date` | The most recent working day's rate is used; `rate_date` differs from `requested_date` and `note` explains the substitution |
+| FX-15 | One of the requested currencies' own feed lags the rest (a per-currency stale rate, `v2`'s own quirk — see `docs/DECISIONS.md`) | `rate_date` is the most recent date among the rates returned; `note` names the lagging currency and its own (older) date |
+| FX-16 | `date` is not in `YYYY-MM-DD` format, or not a real calendar date | Validation error naming the value received; upstream is never called |
+| FX-17 | `base` or an entry of `symbols` is not a 3-letter code | Validation error naming the argument and the value received; upstream is never called |
+| FX-18 | Upstream has no data at all for the requested date (e.g. long before ECB coverage) | Error explaining no rate is available, naming the base currency and date |
+| FX-19 | The upstream is unreachable or answers with an error status | Error naming the exchange-rate service as unavailable |
+
+## Rate history (`rate_timeseries`)
+
+| ID | Scenario | Expected outcome |
+|---|---|---|
+| FX-20 | A caller asks for a valid range | One point per working day published in the range, plus `min`, `max` and `average` across those points |
+| FX-21 | A caller omits `base` and `symbol` | Defaults to `EUR` against `USD` |
+| FX-22 | `start_date` is after `end_date` | Validation error naming both dates; upstream is never called |
+| FX-23 | The range from `start_date` to `end_date` is longer than 366 days | Validation error naming the number of days received; upstream is never called |
+| FX-24 | `start_date` or `end_date` is not in `YYYY-MM-DD` format, or not a real calendar date | Validation error naming the value received; upstream is never called |
+| FX-25 | `base` or `symbol` is not a 3-letter code | Validation error naming the argument and the value received; upstream is never called |
+| FX-26 | The range is valid but upstream has no published rate anywhere inside it | Error explaining no data is available, naming the currency and the range |
+| FX-27 | The upstream is unreachable or answers with an error status | Error naming the exchange-rate service as unavailable |
+
+## Currency catalogue (`list_currencies`)
+
+| ID | Scenario | Expected outcome |
+|---|---|---|
+| FX-28 | A caller lists the supported currencies | Every currency Frankfurter tracks comes back with its ISO 4217 code and name |
+| FX-29 | The upstream is unreachable or answers with an error status | Error naming the currency-catalogue service as unavailable |
+
+## Tool catalogue
+
+| ID | Scenario | Expected outcome |
+|---|---|---|
+| SRV-01 | A client lists the available tools | Exactly `convert`, `latest_rates`, `historical_rate`, `rate_timeseries` and `list_currencies`, with their documented input and output schemas |
 
 ## Authentication (streamable-HTTP transport)
 

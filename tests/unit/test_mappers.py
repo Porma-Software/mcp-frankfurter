@@ -190,6 +190,7 @@ def test_to_rates_snapshot_with_no_requested_date_and_a_single_shared_date() -> 
 
     assert snapshot == {
         "base": "EUR",
+        "requested_date": None,
         "rate_date": "2026-09-11",
         "rates": {"USD": 1.1627, "GBP": 0.85867},
         "note": None,
@@ -201,6 +202,7 @@ def test_to_rates_snapshot_notes_a_requested_date_that_differs_from_rate_date() 
 
     snapshot = to_rates_snapshot(rows, requested_date="2026-09-06")
 
+    assert snapshot["requested_date"] == "2026-09-06"
     assert snapshot["rate_date"] == "2026-09-04"
     assert snapshot["note"] == (
         "Requested 2026-09-06, but the ECB publishes reference rates on working days only; "
@@ -213,6 +215,7 @@ def test_to_rates_snapshot_matching_requested_date_has_no_note() -> None:
 
     snapshot = to_rates_snapshot(rows, requested_date="2026-09-11")
 
+    assert snapshot["requested_date"] == "2026-09-11"
     assert snapshot["note"] is None
 
 

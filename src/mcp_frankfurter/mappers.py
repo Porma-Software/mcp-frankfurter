@@ -11,10 +11,9 @@ Two boundaries, two directions:
   (`RatesSnapshot`, `Conversion`, `RateTimeseries`, `Currency`), raising `ValueError` when the
   records cannot answer the request (e.g. no row for the requested quote currency).
 
-No tool calls these yet (see `docs/scenarios.md`: the Frankfurter tools land in the next
-development slice) — `upstream.py`'s endpoint methods already build `RateRow`/`CurrencyRow` lists
-through the `parse_*` functions, and the `to_*` functions are ready for the tools to call, both
-tested field by field here on plain data.
+`upstream.py`'s endpoint methods build `RateRow`/`CurrencyRow` lists through the `parse_*`
+functions; `server.py`'s five tools call the `to_*` functions to shape their result. Both
+directions are tested field by field here on plain data.
 
 No `mcp` or `httpx` import here, so every function stays unit-testable on plain data, without a
 mocked HTTP call or a running server.
@@ -91,9 +90,14 @@ class RatesSnapshot(TypedDict):
     """Shared shape for `latest_rates` and `historical_rate`: one or more quote currencies as of
     a single `rate_date`, with a plain-language `note` whenever that date needed explaining —
     either because it differs from what the caller asked for, or because one of the quote
-    currencies in `rates` is older than `rate_date` (see `RateRow.date`)."""
+    currencies in `rates` is older than `rate_date` (see `RateRow.date`).
+
+    `requested_date` echoes the date the caller asked for: `None` for `latest_rates` (there is no
+    specific date to echo), or the `historical_rate` date argument, which can differ from
+    `rate_date` when the ECB had not published on that day (see `note`)."""
 
     base: str
+    requested_date: str | None
     rate_date: str
     rates: dict[str, float]
     note: str | None
@@ -234,7 +238,13 @@ def to_rates_snapshot(
         listed = ", ".join(f"{quote} ({date})" for quote, date in stale)
         notes.append(f"Older data for {listed}: no more recent published rate available yet.")
 
-    return RatesSnapshot(base=base, rate_date=rate_date, rates=rates, note=" ".join(notes) or None)
+    return RatesSnapshot(
+        base=base,
+        requested_date=requested_date,
+        rate_date=rate_date,
+        rates=rates,
+        note=" ".join(notes) or None,
+    )
 
 
 def to_conversion(

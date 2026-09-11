@@ -44,12 +44,23 @@ holiday gets back the most recent working day's rate instead of an error. Every 
 server returns carries the `rate_date` the upstream actually used, plus a plain-language note
 whenever `rate_date` differs from the date the caller asked for — never a silent substitution.
 
-## Upstream contract: client and mappers, no tool yet
+## Upstream contract: client and mappers
 
-This slice adds `UpstreamClient.rates`/`.rates_range`/`.currencies` (`upstream.py`) and the
-domain records, tool DTOs and pure `parse_*`/`to_*` functions between them (`mappers.py`), built
-against the five tools ops#7 specifies (`convert`, `latest_rates`, `historical_rate`,
-`rate_timeseries`, `list_currencies`) but not yet wired to any `@mcp.tool()` function — that is
-the next development slice, per `docs/scenarios.md`. `tests/fixtures/*.json` are the exact `curl`
-captures the probe above used; the white-box suite replays them through `respx`, so the parser
-and the client are proven against real upstream shapes without touching the network in CI.
+`UpstreamClient.rates`/`.rates_range`/`.currencies` (`upstream.py`) and the domain records, tool
+DTOs and pure `parse_*`/`to_*` functions between them (`mappers.py`) are built against the five
+tools ops#7 specifies. `tests/fixtures/*.json` are the exact `curl` captures the probe above
+used; the white-box suite replays them through `respx`, so the parser and the client are proven
+against real upstream shapes without touching the network in CI.
+
+## Tool catalogue: five `@mcp.tool()` functions in `server.py`
+
+`convert`, `latest_rates`, `historical_rate`, `rate_timeseries` and `list_currencies` are thin
+wrappers over `UpstreamClient` and `mappers.py` (see `docs/scenarios.md` for the FX-* scenario
+catalogue). Every currency-code argument is upper-cased, trimmed and checked to be a 3-letter
+code locally — never checked against the live currency catalogue first, since a syntactically
+valid but unknown code is rejected by the upstream call itself (`UpstreamError` mapped to
+`ToolError`), which needs no extra round trip to anticipate. `rate_timeseries` refuses a range
+over 366 days or a `start_date` after `end_date` before ever calling upstream. `RatesSnapshot`
+(shared by `latest_rates` and `historical_rate`) carries a `requested_date` field alongside
+`rate_date` so `historical_rate` can echo back what was asked for; `latest_rates` always passes
+`None`, since "latest" has no specific date to echo.
