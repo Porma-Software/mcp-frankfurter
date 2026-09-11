@@ -12,8 +12,8 @@ catalogue the tools will grow into.
 
 What you get so far:
 
-- One adapter module (`upstream.py`) that will own every detail of the Frankfurter API once the
-  tools land.
+- `upstream.py`/`mappers.py`: the Frankfurter `v2` client and its typed records/DTOs (see
+  `docs/DECISIONS.md`), unused by any tool yet — the tools themselves land in the next slice.
 - Two transports: **stdio** for desktop clients and **streamable HTTP** for remote use, the
   latter protected by a bearer token and with an open `GET /healthz`.
 - Settings from environment / `.env` (pydantic-settings), fail-fast on misconfiguration.
@@ -250,7 +250,7 @@ src/mcp_frankfurter/
   __main__.py   composition root: stdio, or uvicorn + auth middleware + /healthz
   auth.py       bearer-token ASGI middleware (infrastructure)
   config.py     Settings (pydantic-settings)
-  mappers.py    payload <-> typed record <-> tool DTO, pure functions (empty for now)
+  mappers.py    payload <-> typed record <-> tool DTO, pure functions (no tool calls them yet)
   server.py     MCPServer instance and the tools (inbound adapter; no tool registered yet)
   upstream.py   the Frankfurter API client (outbound adapter)
 docs/DECISIONS.md   the API version probe and the ECB working-day rule
