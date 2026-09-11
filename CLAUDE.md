@@ -2,8 +2,11 @@
 
 MCP server exposing the Frankfurter API (ECB euro reference exchange rates, no key needed) as
 tools, built on the official `mcp` SDK (`MCPServer`, 2.x), Python 3.14, packaged with uv, src
-layout. Scaffold slice: no tool is registered yet — see `docs/DECISIONS.md` for the chosen API
-version and `docs/scenarios.md` for the catalogue the tools will grow into.
+layout. Five tools live in `server.py` — `convert`, `latest_rates`, `historical_rate`,
+`rate_timeseries`, `list_currencies` — see `docs/DECISIONS.md` for the chosen API version and the
+ECB working-day rule, and `docs/scenarios.md` for the FX-*/SRV-*/AUTH-* scenario catalogue both
+integration suites are tagged against. This is a **public** repository (MIT): never add anything
+that points inside Porma's private infrastructure.
 
 ## Commands
 
@@ -25,9 +28,9 @@ make mutation                    # mutmut on server/upstream/mappers, 0 survivor
 ## Layout
 
 - `src/mcp_frankfurter/config.py` — `Settings` (pydantic-settings, `.env`). HTTP transport refuses to start without `MCP_AUTH_TOKEN`.
-- `src/mcp_frankfurter/mappers.py` — the only module that maps an upstream payload to a typed record and a typed record to a tool DTO. Pure functions, no `httpx`/`mcp` import. Empty until the Frankfurter tools land.
+- `src/mcp_frankfurter/mappers.py` — the only module that maps an upstream payload to a typed record and a typed record to a tool DTO. Pure functions, no `httpx`/`mcp` import.
 - `src/mcp_frankfurter/upstream.py` — the only module that knows the upstream API (URLs, params, retry). Calls `mappers.py` to parse; `UpstreamError` is the only exception it raises.
-- `src/mcp_frankfurter/server.py` — `MCPServer` instance and the tools. Validate input, call upstream, map through `mappers.py`, raise `ToolError` with a clear message. No tool registered yet.
+- `src/mcp_frankfurter/server.py` — `MCPServer` instance and the five tools (`convert`, `latest_rates`, `historical_rate`, `rate_timeseries`, `list_currencies`). Validate input, call upstream, map through `mappers.py`, raise `ToolError` with a clear message.
 - `src/mcp_frankfurter/auth.py` — pure-ASGI bearer-token middleware; `GET /healthz` is exempt.
 - `src/mcp_frankfurter/__main__.py` — entry point: stdio via `mcp.run()`, HTTP via uvicorn with the middleware and `/healthz` added to the SDK app.
 - `docs/DECISIONS.md` — the API version probe (v2, every tool) and the ECB working-day rule.
