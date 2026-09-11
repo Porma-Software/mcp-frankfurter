@@ -1,0 +1,85 @@
+[project]
+name = "mcp-frankfurter"
+version = "0.1.0"
+description = "MCP server exposing the Frankfurter API (ECB euro reference exchange rates) as tools."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13"
+authors = [{ name = "Porma Software" }]
+dependencies = [
+  "mcp[cli]>=2.1,<3",
+  "httpx>=0.28",
+  "pydantic-settings>=2.10",
+]
+
+[project.scripts]
+mcp-frankfurter = "mcp_frankfurter.__main__:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=1.0",
+  "pytest-cov>=6.0",
+  "respx>=0.22",
+  "ruff>=0.12",
+  "mypy>=1.16",
+  "mutmut>=3.3",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_frankfurter"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+# ruff also formats Python snippets inside Markdown; the Claude assets are prose, not code.
+extend-exclude = [".claude"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unreachable = true
+files = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# Live smoke tests hit the real upstream; opt in with `uv run pytest -m live`.
+addopts = "-m 'not live'"
+markers = [
+  "live: calls the real upstream API (deselected by default)",
+  "scenario(*ids): scenario catalogue IDs from docs/scenarios.md (see make scenarios)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src/mcp_frankfurter"]
+
+[tool.coverage.report]
+show_missing = true
+# The Porma standard: 100 % line AND branch. `make test` runs the gate; so does CI.
+fail_under = 100
+exclude_also = [
+  # `python -m mcp_frankfurter`: the console script and the tests call main() directly.
+  'if __name__ == "__main__":',
+]
+
+# Mutation testing: 0 survivors on the tool/adapter/mapper layers this server is built around.
+# `make mutation` (Linux/WSL/Docker only: mutmut refuses to run natively on Windows).
+[tool.mutmut]
+source_paths = ["src/mcp_frankfurter"]
+only_mutate = [
+  "src/mcp_frankfurter/server.py",
+  "src/mcp_frankfurter/upstream.py",
+  "src/mcp_frankfurter/mappers.py",
+]
+pytest_add_cli_args_test_selection = ["tests/"]
+also_copy = [".python-version", "README.md", "LICENSE"]

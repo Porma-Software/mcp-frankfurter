@@ -1,0 +1,39 @@
+# Porma Software secret guardrail — layer 1 (repository hooks, pre-commit framework).
+#
+# Installed by toolkit/secrets/install-repo.sh, which copies this file to
+# .pre-commit-config.yaml and runs:
+#   pre-commit install --hook-type pre-commit --hook-type pre-push
+#
+# Run the whole set by hand with `pre-commit run --all-files`; refresh the pinned
+# revs with `pre-commit autoupdate` (and re-run the suite before committing them).
+minimum_pre_commit_version: "4.0.0"
+
+# `pre-commit install` without arguments installs both hook types.
+default_install_hook_types: [pre-commit, pre-push]
+# Every hook below runs on commit AND on push: a commit made with --no-verify is
+# still caught before it leaves the machine.
+default_stages: [pre-commit, pre-push]
+
+# Generated or minified files: no secret is authored there and they are slow to scan.
+# The baseline itself only holds hashes; scanning it produces noise.
+exclude: '(^|/)(uv\.lock|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|\.secrets\.baseline)$|\.min\.(js|css)$'
+
+repos:
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      # Catches key material detect-secrets' plugins can miss (PEM headers of any flavour).
+      # It knows nothing about "pragma: allowlist secret"; a file that only carries a PEM
+      # placeholder (an .env.example, a fixture) is excluded by path:
+      #   exclude: '^infra/runners\.env\.example$'
+      - id: detect-private-key
+      - id: check-merge-conflict
+      # A 5 MB blob is almost always a dump, a keystore or a build artefact.
+      - id: check-added-large-files
+        args: ["--maxkb=5120"]

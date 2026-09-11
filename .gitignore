@@ -1,0 +1,36 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# mutation testing (make mutation)
+mutants/
+.mutmut-cache
+
+# local secret scan (make secrets-scan / scripts/scan-secrets-local.sh)
+gitleaks.log
+.gitleaks-scan/
+
+# claude code: machine-local permission approvals, never shared
+.claude/settings.local.json
+
+# ide / os
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

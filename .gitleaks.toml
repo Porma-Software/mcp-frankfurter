@@ -1,0 +1,31 @@
+# Porma Software secret guardrail — gitleaks configuration (layer 3, full history).
+#
+# gitleaks reads this file automatically when it sits at the root of the scanned
+# source, so `gitleaks git /repo` in CI picks it up without a --config flag.
+# Keep it minimal: the default rule set is the value, this file only removes the
+# noise that is provably not a credential.
+
+title = "Porma Software"
+
+[extend]
+# ~170 upstream rules (cloud providers, VCS tokens, private keys, ...). Never turn this off.
+useDefault = true
+
+[allowlist]
+description = "Porma Software global allowlist"
+# Paths whose content is hashes or config, never live credentials. Lockfiles are deliberately
+# NOT here: detect-secrets and the local hooks already exclude them (they are generated,
+# huge and slow to scan), so this is the only layer left that reads them, and a credential
+# embedded in one (a token in an index URL, an _authToken, a resolved URL with an embedded
+# key) must still be caught. Minified files are still scanned by gitleaks too — it does not
+# skip them the way detect-secrets does.
+paths = [
+  '''(^|/)\.secrets\.baseline$''',
+  '''(^|/)\.pre-commit-config\.yaml$''',
+]
+# No value allowlist: gitleaks v8.30.1 already ignores the published vendor examples used
+# in this toolkit's tests (verified: the AWS documentation key produces "no leaks found"),
+# and writing such a value here would make every repository's own detect-secrets run flag
+# this file. Add an entry only for a value the scanner really trips on:
+#   regexes = ['''<the exact literal>''']
+#   regexTarget = "match"
