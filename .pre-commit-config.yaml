@@ -37,3 +37,15 @@ repos:
       # A 5 MB blob is almost always a dump, a keystore or a build artefact.
       - id: check-added-large-files
         args: ["--maxkb=5120"]
+
+  - repo: local
+    hooks:
+      # Fails when uv.lock points anywhere but the public PyPI index. Runs
+      # unconditionally (always_run, no pass_filenames) because the exclude above skips
+      # uv.lock itself, so this hook must not depend on which files changed.
+      - id: uv-lock-index
+        name: "uv.lock index is PyPI"
+        entry: uv run --no-project --quiet python .github/scripts/check-uv-lock-index.py
+        language: system
+        pass_filenames: false
+        always_run: true
