@@ -64,3 +64,20 @@ over 366 days or a `start_date` after `end_date` before ever calling upstream. `
 (shared by `latest_rates` and `historical_rate`) carries a `requested_date` field alongside
 `rate_date` so `historical_rate` can echo back what was asked for; `latest_rates` always passes
 `None`, since "latest" has no specific date to echo.
+
+## A well-formed ISO 4217 code the ECB does not publish: an empty list, not an error
+
+Confirmed live against `https://api.frankfurter.dev/v2` on 2026-09-12: a syntactically valid
+3-letter code that passes this server's own `_currency_code` check but that the ECB does not
+publish a reference rate for is not a `4xx`. `GET /v2/rates?base=EUR&quotes=XTS` and
+`GET /v2/rates?base=XTS&quotes=USD` (`XTS` is ISO 4217's own code reserved for testing, never a
+real currency) both come back `200` with an empty JSON array — the same shape Frankfurter uses
+for "no rate published for the date/range asked", not a distinct "unknown currency" error.
+
+`UpstreamClient` returns that empty list rather than raising `UpstreamError`, so `convert`,
+`latest_rates`, `historical_rate` and `rate_timeseries` already handle it correctly with no
+change needed: `to_conversion`/`to_rates_snapshot`/`to_rate_timeseries` raise `ValueError` on an
+empty row list exactly as they do for a real currency pair with no data yet (see FX-07, FX-18,
+FX-26, FX-30 in `docs/scenarios.md`), and each tool turns that into the same "no data available"
+`ToolError` either way. This is correct, intended behaviour: to a caller, the ECB never having
+tracked a currency looks identical to the ECB not having published for it yet.
