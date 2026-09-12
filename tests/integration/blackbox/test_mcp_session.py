@@ -197,7 +197,7 @@ async def test_convert_upstream_error_is_an_error_result(respx_mock: respx.MockR
     assert result.is_error is True
     assert text_of(result) == (
         "Error executing tool convert: exchange rate service unavailable: "
-        f"{BASE_URL}/rates returned HTTP 503"
+        f"{BASE_URL}/rates returned HTTP 503: down"
     )
 
 
@@ -263,7 +263,27 @@ async def test_latest_rates_upstream_error_is_an_error_result(
     assert result.is_error is True
     assert text_of(result) == (
         "Error executing tool latest_rates: exchange rate service unavailable: "
-        f"{BASE_URL}/rates returned HTTP 503"
+        f"{BASE_URL}/rates returned HTTP 503: down"
+    )
+
+
+async def test_latest_rates_upstream_error_body_is_truncated_in_the_message(
+    respx_mock: respx.MockRouter,
+) -> None:
+    # Not a catalogue scenario: pins that a long upstream error body reaches the client already
+    # bounded, end to end through a real tool call (see the white-box truncation tests for the
+    # boundary cases of the cut itself).
+    long_body = "e" * 250
+    respx_mock.get(f"{BASE_URL}/rates").mock(return_value=httpx.Response(503, text=long_body))
+
+    async with connect() as client:
+        result = await client.call_tool("latest_rates", {})
+
+    assert result.is_error is True
+    truncated = "e" * 200 + "..."
+    assert text_of(result) == (
+        "Error executing tool latest_rates: exchange rate service unavailable: "
+        f"{BASE_URL}/rates returned HTTP 503: {truncated}"
     )
 
 
@@ -400,7 +420,7 @@ async def test_historical_rate_upstream_error_is_an_error_result(
     assert result.is_error is True
     assert text_of(result) == (
         "Error executing tool historical_rate: exchange rate service unavailable: "
-        f"{BASE_URL}/rates returned HTTP 500"
+        f"{BASE_URL}/rates returned HTTP 500: down"
     )
 
 
@@ -541,7 +561,7 @@ async def test_rate_timeseries_upstream_error_is_an_error_result(
     assert result.is_error is True
     assert text_of(result) == (
         "Error executing tool rate_timeseries: exchange rate service unavailable: "
-        f"{BASE_URL}/rates returned HTTP 502"
+        f"{BASE_URL}/rates returned HTTP 502: down"
     )
 
 
@@ -576,7 +596,7 @@ async def test_list_currencies_upstream_error_is_an_error_result(
     assert result.is_error is True
     assert text_of(result) == (
         "Error executing tool list_currencies: currency catalogue service unavailable: "
-        f"{BASE_URL}/currencies returned HTTP 500"
+        f"{BASE_URL}/currencies returned HTTP 500: down"
     )
 
 

@@ -154,5 +154,5 @@ async def test_convert_upstream_error_is_a_tool_error(rates_route: respx.Route) 
         await convert(1.0, "EUR", "USD")
 
     assert str(exc.value) == (
-        f"exchange rate service unavailable: {BASE_URL}/rates returned HTTP 503"
+        f"exchange rate service unavailable: {BASE_URL}/rates returned HTTP 503: down"
     )

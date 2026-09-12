@@ -178,10 +178,26 @@ docker build -t mcp-frankfurter .
 - **CI.** GitHub Actions runs lint, the scenario check, the full test suite and a Docker build on
   every push and pull request, plus a separate mutation-testing job — see
   [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+- **Recording the demo GIF.** The screen recording at the top of `scripts/demo.py`'s output is
+  produced by [`docs/demo.tape`](docs/demo.tape) (a [`vhs`](https://github.com/charmbracelet/vhs)
+  script that types and runs `uv run python scripts/demo.py`) built and rendered through
+  [`docs/vhs.Dockerfile`](docs/vhs.Dockerfile), never run on the host:
+
+  ```bash
+  docker build -t mcp-frankfurter-vhs -f docs/vhs.Dockerfile .
+  docker run --rm -v "$PWD/docs":/work/docs mcp-frankfurter-vhs docs/demo.tape
+  ```
+
+  This needs a real Docker *engine* with working pty/terminal allocation for `vhs`'s recorder.
+  **On Docker Desktop (Windows or macOS) `vhs` exits with no error and no `docs/demo.gif` is
+  written** — its virtualized backend does not give the container what `vhs` needs to drive a
+  terminal. Run the two commands above against a native Linux Docker engine instead: WSL2's own
+  Docker Engine (not Docker Desktop's Windows integration), a Linux box, or a Linux CI runner.
 
 ## Built by Porma Software
 
-Built and maintained by Porma Software as an open-source reference server.
+Built and maintained by [Porma Software](https://github.com/Porma-Software) as an open-source
+reference server. See [pormasoftware.com](https://pormasoftware.com) for more.
 
 ## License
 

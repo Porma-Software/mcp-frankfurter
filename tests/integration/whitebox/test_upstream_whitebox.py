@@ -18,7 +18,12 @@ import respx
 
 from mcp_frankfurter.config import Settings
 from mcp_frankfurter.mappers import CurrencyRow, RateRow
-from mcp_frankfurter.upstream import USER_AGENT, UpstreamClient, UpstreamError
+from mcp_frankfurter.upstream import (
+    MAX_ERROR_BODY_LENGTH,
+    USER_AGENT,
+    UpstreamClient,
+    UpstreamError,
+)
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
 BASE_URL = "https://api.frankfurter.dev/v2"
@@ -207,7 +212,7 @@ async def test_rates_raises_upstream_error_on_an_http_error_status(
     with pytest.raises(UpstreamError) as exc:
         await client.rates(base="EUR", quotes=["USD"])
 
-    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 503"
+    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 503: down"
     assert exc.value.status_code == 503
 
 
@@ -220,8 +225,58 @@ async def test_rates_raises_upstream_error_on_http_400_exactly(
     with pytest.raises(UpstreamError) as exc:
         await client.rates(base="EUR", quotes=["USD"])
 
-    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 400"
+    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 400: bad request"
     assert exc.value.status_code == 400
+
+
+async def test_upstream_error_body_at_the_limit_is_included_in_full(
+    client: UpstreamClient, respx_mock: respx.MockRouter
+) -> None:
+    # Pins the boundary itself: a body of exactly MAX_ERROR_BODY_LENGTH characters is not cut,
+    # and no trailing "..." is appended.
+    body = "x" * MAX_ERROR_BODY_LENGTH
+    respx_mock.get(f"{BASE_URL}/rates").mock(return_value=httpx.Response(500, text=body))
+
+    with pytest.raises(UpstreamError) as exc:
+        await client.rates(base="EUR", quotes=["USD"])
+
+    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 500: {body}"
+
+
+async def test_upstream_error_body_over_the_limit_is_truncated_with_an_ellipsis(
+    client: UpstreamClient, respx_mock: respx.MockRouter
+) -> None:
+    body = "x" * (MAX_ERROR_BODY_LENGTH + 50)
+    respx_mock.get(f"{BASE_URL}/rates").mock(return_value=httpx.Response(500, text=body))
+
+    with pytest.raises(UpstreamError) as exc:
+        await client.rates(base="EUR", quotes=["USD"])
+
+    expected_body = "x" * MAX_ERROR_BODY_LENGTH + "..."
+    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 500: {expected_body}"
+
+
+async def test_upstream_error_omits_the_colon_when_the_body_is_empty(
+    client: UpstreamClient, respx_mock: respx.MockRouter
+) -> None:
+    respx_mock.get(f"{BASE_URL}/rates").mock(return_value=httpx.Response(500, text=""))
+
+    with pytest.raises(UpstreamError) as exc:
+        await client.rates(base="EUR", quotes=["USD"])
+
+    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 500"
+
+
+async def test_upstream_error_omits_the_body_when_it_is_only_whitespace(
+    client: UpstreamClient, respx_mock: respx.MockRouter
+) -> None:
+    # A body that is whitespace-only strips down to "": still no trailing colon or ellipsis.
+    respx_mock.get(f"{BASE_URL}/rates").mock(return_value=httpx.Response(500, text="   \n  "))
+
+    with pytest.raises(UpstreamError) as exc:
+        await client.rates(base="EUR", quotes=["USD"])
+
+    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 500"
 
 
 async def test_rates_raises_upstream_error_on_a_network_failure(
@@ -328,7 +383,7 @@ async def test_rates_range_raises_upstream_error_on_an_http_error_status(
     with pytest.raises(UpstreamError) as exc:
         await client.rates_range(date_from="2026-08-10", date_to="2026-09-08")
 
-    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 422"
+    assert str(exc.value) == f"{BASE_URL}/rates returned HTTP 422: bad range"
     assert exc.value.status_code == 422
 
 
@@ -366,7 +421,7 @@ async def test_currencies_raises_upstream_error_on_an_http_error_status(
     with pytest.raises(UpstreamError) as exc:
         await client.currencies()
 
-    assert str(exc.value) == f"{BASE_URL}/currencies returned HTTP 500"
+    assert str(exc.value) == f"{BASE_URL}/currencies returned HTTP 500: down"
 
 
 async def test_currencies_raises_upstream_error_on_a_malformed_shape(
