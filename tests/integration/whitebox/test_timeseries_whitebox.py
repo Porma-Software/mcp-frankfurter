@@ -81,6 +81,23 @@ async def test_rate_timeseries_rejects_a_range_over_the_limit(range_route: respx
     assert not range_route.called
 
 
+async def test_rate_timeseries_allows_a_range_of_exactly_the_limit(
+    range_route: respx.Route,
+) -> None:
+    # 2025-01-01..2026-01-02 spans exactly MAX_RANGE_DAYS (366) days: the complement of the FX-23
+    # test above, pinning that the limit is inclusive by letting the call actually reach upstream
+    # (respx-mocked here, never the real network) instead of raising. During the review of #7,
+    # sabotaging this boundary (`>` to `>=`) was checked by hand against the real API because no
+    # test exercised this side of it -- this closes that gap.
+    range_route.mock(return_value=httpx.Response(200, json=[]))
+
+    with pytest.raises(ToolError) as exc:
+        await rate_timeseries("2025-01-01", "2026-01-02")
+
+    assert str(exc.value) == "no exchange rate data for USD between 2025-01-01 and 2026-01-02"
+    assert range_route.called
+
+
 @scenario("FX-24")
 @pytest.mark.parametrize(
     ("start_date", "end_date", "message"),
