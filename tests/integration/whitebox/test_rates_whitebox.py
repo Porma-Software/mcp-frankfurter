@@ -86,7 +86,7 @@ async def test_latest_rates_upstream_error_is_a_tool_error(rates_route: respx.Ro
         await latest_rates()
 
     assert str(exc.value) == (
-        f"exchange rate service unavailable: {BASE_URL}/rates returned HTTP 503"
+        f"exchange rate service unavailable: {BASE_URL}/rates returned HTTP 503: down"
     )
 
 
@@ -198,5 +198,5 @@ async def test_historical_rate_upstream_error_is_a_tool_error(rates_route: respx
         await historical_rate("2026-09-08")
 
     assert str(exc.value) == (
-        f"exchange rate service unavailable: {BASE_URL}/rates returned HTTP 500"
+        f"exchange rate service unavailable: {BASE_URL}/rates returned HTTP 500: down"
     )

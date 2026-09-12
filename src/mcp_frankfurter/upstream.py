@@ -24,8 +24,19 @@ from mcp_frankfurter.config import Settings
 from mcp_frankfurter.mappers import CurrencyRow, RateRow, parse_currency_rows, parse_rate_rows
 
 USER_AGENT = "mcp-frankfurter/0.1"
+# A non-2xx body can be an arbitrarily large HTML error page or JSON blob; keep only this many
+# characters of it in UpstreamError's message, with a trailing "..." when it was cut.
+MAX_ERROR_BODY_LENGTH = 200
 
-__all__ = ["USER_AGENT", "UpstreamClient", "UpstreamError"]
+__all__ = ["MAX_ERROR_BODY_LENGTH", "USER_AGENT", "UpstreamClient", "UpstreamError"]
+
+
+def _truncated_body(text: str) -> str:
+    """`text.strip()`, cut to `MAX_ERROR_BODY_LENGTH` characters with a trailing "..." if cut."""
+    body = text.strip()
+    if len(body) <= MAX_ERROR_BODY_LENGTH:
+        return body
+    return body[:MAX_ERROR_BODY_LENGTH] + "..."
 
 
 class UpstreamError(Exception):
@@ -83,9 +94,11 @@ class UpstreamClient:
         except httpx.HTTPError as exc:
             raise UpstreamError(f"could not reach {url}: {exc}") from exc
         if response.status_code >= 400:
-            raise UpstreamError(
-                f"{url} returned HTTP {response.status_code}", status_code=response.status_code
-            )
+            message = f"{url} returned HTTP {response.status_code}"
+            body = _truncated_body(response.text)
+            if body:
+                message = f"{message}: {body}"
+            raise UpstreamError(message, status_code=response.status_code)
         try:
             return response.json()
         except ValueError as exc:

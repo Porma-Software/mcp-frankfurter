@@ -48,5 +48,5 @@ async def test_list_currencies_upstream_error_is_a_tool_error(
         await list_currencies()
 
     assert str(exc.value) == (
-        f"currency catalogue service unavailable: {BASE_URL}/currencies returned HTTP 500"
+        f"currency catalogue service unavailable: {BASE_URL}/currencies returned HTTP 500: down"
     )

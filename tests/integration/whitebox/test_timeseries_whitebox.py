@@ -129,5 +129,5 @@ async def test_rate_timeseries_upstream_error_is_a_tool_error(range_route: respx
         await rate_timeseries("2026-08-10", "2026-09-08")
 
     assert str(exc.value) == (
-        f"exchange rate service unavailable: {BASE_URL}/rates returned HTTP 502"
+        f"exchange rate service unavailable: {BASE_URL}/rates returned HTTP 502: down"
     )
