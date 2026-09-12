@@ -1,5 +1,10 @@
 FROM python:3.14-slim
 
+LABEL org.opencontainers.image.source="https://github.com/Porma-Software/mcp-frankfurter" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.title="mcp-frankfurter" \
+      org.opencontainers.image.description="MCP server exposing the Frankfurter API (ECB euro reference exchange rates) as tools."
+
 COPY --from=ghcr.io/astral-sh/uv:0.12.10 /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1 \

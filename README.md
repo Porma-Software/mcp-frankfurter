@@ -79,8 +79,10 @@ Frankfurter's public API over plain HTTPS.
 
 ### Docker, over stdio
 
+Pull the published image — no build step needed:
+
 ```bash
-docker build -t mcp-frankfurter https://github.com/Porma-Software/mcp-frankfurter.git
+docker pull ghcr.io/porma-software/mcp-frankfurter:0.1.0
 ```
 
 ```json
@@ -88,13 +90,16 @@ docker build -t mcp-frankfurter https://github.com/Porma-Software/mcp-frankfurte
   "mcpServers": {
     "mcp-frankfurter": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "-e", "MCP_TRANSPORT=stdio", "mcp-frankfurter"]
+      "args": ["run", "--rm", "-i", "-e", "MCP_TRANSPORT=stdio", "ghcr.io/porma-software/mcp-frankfurter:0.1.0"]
     }
   }
 }
 ```
 
 (The image defaults to the HTTP transport, so stdio use overrides `MCP_TRANSPORT` back to `stdio`.)
+
+Building from source is documented under **For developers** below — use it if you'd rather run
+your own build than pull the published one.
 
 ### Running it for a whole team, over HTTP
 
@@ -104,7 +109,7 @@ token instead of a client launching its own copy:
 ```bash
 export MCP_AUTH_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
 docker run -d --name mcp-frankfurter -p 8000:8000 -e MCP_AUTH_TOKEN="$MCP_AUTH_TOKEN" \
-  mcp-frankfurter
+  ghcr.io/porma-software/mcp-frankfurter:0.1.0
 ```
 
 Put it behind TLS (a reverse proxy) before it leaves localhost — the token travels in a header.

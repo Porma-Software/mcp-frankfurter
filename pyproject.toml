@@ -82,4 +82,4 @@ only_mutate = [
   "src/mcp_frankfurter/mappers.py",
 ]
 pytest_add_cli_args_test_selection = ["tests/"]
-also_copy = [".python-version", "README.md", "LICENSE"]
+also_copy = [".python-version", "README.md", "LICENSE", ".github", "Dockerfile"]
