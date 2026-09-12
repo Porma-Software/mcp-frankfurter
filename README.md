@@ -196,7 +196,8 @@ docker build -t mcp-frankfurter .
 
 ## Built by Porma Software
 
-Built and maintained by Porma Software as an open-source reference server.
+Built and maintained by [Porma Software](https://github.com/Porma-Software) as an open-source
+reference server. See [pormasoftware.com](https://pormasoftware.com) for more.
 
 ## License
 
